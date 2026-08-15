@@ -47,23 +47,40 @@ while (true)
     string p2Move = p2Task.Result.ToUpper();
 
     // 4. Calculate the logic
-    if (p1Move == p2Move)
+    string attackerMove = p1IsAttacker ? p1Move : p2Move;
+    string defenderMove = p1IsAttacker ? p2Move : p1Move;
+    bool attackerScored = false;
+
+    if (attackerMove == "NONE")
     {
-        if (p1IsAttacker)
-        {
-            p1Score++;
-            lastRoundResult = $"MATCH ({p1Move})! Player 1 lands a hit!";
-        }
-        else
-        {
-            p2Score++;
-            lastRoundResult = $"MATCH ({p2Move})! Player 2 lands a hit!";
-        }
+        // Attacker did nothing. Defender is safe.
+        lastRoundResult = $"DEFENDER SAFE! Attacker froze. (A: {attackerMove}, D: {defenderMove}). Roles swapped!";
+        p1IsAttacker = !p1IsAttacker;
+    }
+    else if (defenderMove == "NONE")
+    {
+        // Defender did nothing while Attacker attacked. Free hit!
+        attackerScored = true;
+        lastRoundResult = $"PUNISH! Defender froze. (A: {attackerMove}, D: {defenderMove}). Attacker scores!";
+    }
+    else if (attackerMove == defenderMove)
+    {
+        // Both picked a direction, and it's a match.
+        attackerScored = true;
+        lastRoundResult = $"HIT! (A: {attackerMove}, D: {defenderMove}). Attacker scores!";
     }
     else
     {
-        lastRoundResult = $"MISS! (P1 did {p1Move}, P2 did {p2Move}). Roles are swapped!";
-        p1IsAttacker = !p1IsAttacker; // Swap the attacker
+        // Both picked a direction, but they don't match. Blocked!
+        lastRoundResult = $"BLOCKED! (A: {attackerMove}, D: {defenderMove}). Roles swapped!";
+        p1IsAttacker = !p1IsAttacker;
+    }
+
+    // Apply the score if the attacker successfully landed a hit
+    if (attackerScored)
+    {
+        if (p1IsAttacker) p1Score++;
+        else p2Score++;
     }
 }
 
