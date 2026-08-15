@@ -28,75 +28,83 @@
         /// </summary>
         private void InitializeComponent()
         {
-            lblW = new Label();
-            lblS = new Label();
-            lblA = new Label();
-            lblD = new Label();
             prgTimer = new ProgressBar();
+            lblStatus = new Label();
+            btnReady = new Button();
+            panelW = new Panel();
+            panelS = new Panel();
+            panelA = new Panel();
+            panelD = new Panel();
             SuspendLayout();
-            // 
-            // lblW
-            // 
-            lblW.AccessibleName = "";
-            lblW.AutoSize = true;
-            lblW.Font = new Font("Segoe UI", 72F);
-            lblW.ForeColor = SystemColors.AppWorkspace;
-            lblW.Location = new Point(340, 4);
-            lblW.Name = "lblW";
-            lblW.Size = new Size(137, 128);
-            lblW.TabIndex = 0;
-            lblW.Text = "▲";
-            // 
-            // lblS
-            // 
-            lblS.AutoSize = true;
-            lblS.Font = new Font("Segoe UI", 72F);
-            lblS.ForeColor = SystemColors.AppWorkspace;
-            lblS.Location = new Point(340, 260);
-            lblS.Name = "lblS";
-            lblS.Size = new Size(137, 128);
-            lblS.TabIndex = 1;
-            lblS.Text = "▼";
-            // 
-            // lblA
-            // 
-            lblA.AutoSize = true;
-            lblA.Font = new Font("Segoe UI", 108F);
-            lblA.ForeColor = SystemColors.AppWorkspace;
-            lblA.Location = new Point(159, 99);
-            lblA.Name = "lblA";
-            lblA.Size = new Size(204, 191);
-            lblA.TabIndex = 2;
-            lblA.Text = "◄";
-            // 
-            // lblD
-            // 
-            lblD.AutoSize = true;
-            lblD.Font = new Font("Segoe UI", 108F);
-            lblD.ForeColor = SystemColors.AppWorkspace;
-            lblD.Location = new Point(447, 99);
-            lblD.Name = "lblD";
-            lblD.Size = new Size(204, 191);
-            lblD.TabIndex = 3;
-            lblD.Text = "►";
             // 
             // prgTimer
             // 
-            prgTimer.Location = new Point(153, 402);
+            prgTimer.Location = new Point(176, 402);
             prgTimer.Name = "prgTimer";
             prgTimer.Size = new Size(505, 23);
             prgTimer.TabIndex = 4;
+            prgTimer.Visible = false;
+            // 
+            // lblStatus
+            // 
+            lblStatus.Font = new Font("Segoe UI", 24F);
+            lblStatus.Location = new Point(12, 9);
+            lblStatus.Name = "lblStatus";
+            lblStatus.Size = new Size(708, 48);
+            lblStatus.TabIndex = 5;
+            lblStatus.Text = "Waiting...";
+            // 
+            // btnReady
+            // 
+            btnReady.AutoSize = true;
+            btnReady.Font = new Font("Segoe UI", 20F);
+            btnReady.Location = new Point(373, 185);
+            btnReady.Name = "btnReady";
+            btnReady.Size = new Size(107, 51);
+            btnReady.TabIndex = 6;
+            btnReady.Text = "Ready!";
+            btnReady.UseVisualStyleBackColor = true;
+            // 
+            // panelW
+            // 
+            panelW.Location = new Point(387, 76);
+            panelW.Name = "panelW";
+            panelW.Size = new Size(80, 80);
+            panelW.TabIndex = 7;
+            // 
+            // panelS
+            // 
+            panelS.Location = new Point(387, 270);
+            panelS.Name = "panelS";
+            panelS.Size = new Size(80, 80);
+            panelS.TabIndex = 8;
+            // 
+            // panelA
+            // 
+            panelA.Location = new Point(273, 170);
+            panelA.Name = "panelA";
+            panelA.Size = new Size(80, 80);
+            panelA.TabIndex = 8;
+            // 
+            // panelD
+            // 
+            panelD.Location = new Point(497, 170);
+            panelD.Name = "panelD";
+            panelD.Size = new Size(80, 80);
+            panelD.TabIndex = 8;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(panelS);
+            Controls.Add(panelA);
+            Controls.Add(panelD);
+            Controls.Add(panelW);
+            Controls.Add(btnReady);
+            Controls.Add(lblStatus);
             Controls.Add(prgTimer);
-            Controls.Add(lblD);
-            Controls.Add(lblA);
-            Controls.Add(lblS);
-            Controls.Add(lblW);
             KeyPreview = true;
             Name = "Form1";
             Text = "Form1";
@@ -106,11 +114,12 @@
         }
 
         #endregion
-
-        private Label lblW;
-        private Label lblS;
-        private Label lblA;
-        private Label lblD;
         private ProgressBar prgTimer;
+        private Label lblStatus;
+        private Button btnReady;
+        private Panel panelW;
+        private Panel panelS;
+        private Panel panelA;
+        private Panel panelD;
     }
 }
