@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -21,6 +22,14 @@ namespace CbgDesktopClient
         private bool gameStarted = false;
         private bool isAttacker = false;
 
+        private bool isGameOver = false;
+        private bool hasWon = false;
+
+        private Dictionary<char, int> directionHits = new Dictionary<char, int>
+        {
+            { 'W', 0 }, { 'A', 0 }, { 'S', 0 }, { 'D', 0 }
+        };
+
         public Form1()
         {
             InitializeComponent();
@@ -37,7 +46,7 @@ namespace CbgDesktopClient
                 btnReady.Click += BtnReady_Click;
             }
 
-            // Wire up the custom Paint events for advanced GDI+ rotation & coloring
+            // GDI+ Renderers
             panelW.Paint += (s, e) => DrawIcon(e.Graphics, panelW.ClientSize, 'W');
             panelA.Paint += (s, e) => DrawIcon(e.Graphics, panelA.ClientSize, 'A');
             panelS.Paint += (s, e) => DrawIcon(e.Graphics, panelS.ClientSize, 'S');
@@ -67,8 +76,12 @@ namespace CbgDesktopClient
             prgTimer.Visible = true;
             lblStatus.Text = "Waiting for opponent to ready up...";
 
-            byte[] buffer = Encoding.UTF8.GetBytes("READY");
-            await stream.WriteAsync(buffer, 0, buffer.Length);
+            try
+            {
+                byte[] buffer = Encoding.UTF8.GetBytes("READY");
+                await stream.WriteAsync(buffer, 0, buffer.Length);
+            }
+            catch { }
         }
 
         private async void ListenToServerAsync()
@@ -76,7 +89,16 @@ namespace CbgDesktopClient
             byte[] buffer = new byte[1024];
             while (true)
             {
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                int bytesRead = 0;
+                try
+                {
+                    bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                }
+                catch
+                {
+                    break;
+                }
+
                 if (bytesRead == 0) break;
 
                 string serverMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
@@ -88,12 +110,86 @@ namespace CbgDesktopClient
                 }
 
                 gameStarted = true;
-                isAttacker = serverMessage.Contains("[ATTACKER]");
 
-                lblStatus.Text = serverMessage;
+                // 1. Check for Game Over
+                if (serverMessage.Contains("GAMEOVER:"))
+                {
+                    isGameOver = true;
+                    hasWon = serverMessage.Contains("GAMEOVER:WIN");
+                    roundTimer.Stop();
+                    prgTimer.Visible = false;
 
-                // Redraw panels to switch between gloves and arrows based on role
-                RefreshPanels();
+                    string finalDisplay = serverMessage
+                        .Replace("GAMEOVER:WIN\n", "")
+                        .Replace("GAMEOVER:LOSE\n", "")
+                        .Replace("HITS:W3,A3,S3,D3", "")
+                        .Trim();
+
+                    lblStatus.Text = finalDisplay;
+                    RefreshPanels();
+                    break;
+                }
+
+                // 2. Role Identification
+                isAttacker = serverMessage.Contains("ROLE:ATTACKER");
+
+                // 3. Dynamic Timer Duration Parsing
+                if (serverMessage.Contains("TIME:"))
+                {
+                    int startIdx = serverMessage.IndexOf("TIME:") + 5;
+                    int endIdx = serverMessage.IndexOf('\n', startIdx);
+                    string timeStr = (endIdx != -1)
+                        ? serverMessage.Substring(startIdx, endIdx - startIdx).Trim()
+                        : serverMessage.Substring(startIdx).Trim();
+
+                    if (int.TryParse(timeStr, out int parsedTime))
+                    {
+                        roundTimeMs = parsedTime;
+                    }
+                }
+
+                // 4. Parse Hits
+                if (serverMessage.Contains("HITS:"))
+                {
+                    int startIdx = serverMessage.IndexOf("HITS:") + 5;
+                    int endIdx = serverMessage.IndexOf('\n', startIdx);
+                    string hitsStr = (endIdx != -1)
+                        ? serverMessage.Substring(startIdx, endIdx - startIdx).Trim()
+                        : serverMessage.Substring(startIdx).Trim();
+
+                    var tokens = hitsStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var token in tokens)
+                    {
+                        if (token.Length >= 2 && "WASD".Contains(token[0].ToString()))
+                        {
+                            if (int.TryParse(token.Substring(1), out int count))
+                            {
+                                directionHits[token[0]] = count;
+                            }
+                        }
+                    }
+                }
+
+                // 5. Clean Status Display Text
+                string displayMessage = serverMessage
+                    .Replace("ROLE:ATTACKER\n", "")
+                    .Replace("ROLE:DEFENDER\n", "");
+
+                int hIdx = displayMessage.IndexOf("HITS:");
+                if (hIdx != -1)
+                {
+                    int nIdx = displayMessage.IndexOf('\n', hIdx);
+                    displayMessage = nIdx != -1 ? displayMessage.Remove(hIdx, nIdx - hIdx + 1) : displayMessage.Substring(0, hIdx);
+                }
+
+                int tIdx = displayMessage.IndexOf("TIME:");
+                if (tIdx != -1)
+                {
+                    int nIdx = displayMessage.IndexOf('\n', tIdx);
+                    displayMessage = nIdx != -1 ? displayMessage.Remove(tIdx, nIdx - tIdx + 1) : displayMessage.Substring(0, tIdx);
+                }
+
+                lblStatus.Text = displayMessage.Trim();
                 StartRound();
             }
         }
@@ -111,36 +207,122 @@ namespace CbgDesktopClient
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAlias;
 
-            // Color: Blue if currently held down, Gray if idle
-            bool isPressed = (currentMove == dir);
-            Color brushColor = isPressed ? Color.Blue : Color.Gray;
-
-            // Correct rotation angles for all 4 directions (0 = Up, 90 = Right, 180 = Down, 270 = Left)
-            float angle = 0f;
-            if (dir == 'W') angle = 0f;       // Up
-            else if (dir == 'D') angle = 90f;   // Right
-            else if (dir == 'S') angle = 180f;  // Down
-            else if (dir == 'A') angle = 270f;  // Left
-
-            // Use boxing gloves for the attacker, and the uniform '▲' character for the defender
-            string text = isAttacker ? "🥊" : "▲";
-
-            using (Font font = new Font("Segoe UI Emoji", 32, FontStyle.Regular))
-            using (Brush brush = new SolidBrush(brushColor))
+            // Endgame View
+            if (isGameOver)
             {
-                // Move origin to the center of the panel, rotate, and draw perfectly centered
-                g.TranslateTransform(size.Width / 2f, size.Height / 2f);
-                g.RotateTransform(angle);
+                using (Font font = new Font("Segoe UI Emoji", 30, FontStyle.Regular))
+                using (Brush brush = new SolidBrush(hasWon ? Color.Gold : Color.Red))
+                {
+                    g.TranslateTransform(size.Width / 2f, size.Height / 2f);
+                    string text = hasWon ? "🏆" : "💀";
+                    SizeF textSize = g.MeasureString(text, font);
+                    g.DrawString(text, font, brush, -textSize.Width / 2f, -textSize.Height / 2f);
+                    g.ResetTransform();
+                }
+                return;
+            }
 
-                SizeF textSize = g.MeasureString(text, font);
-                g.DrawString(text, font, brush, -textSize.Width / 2f, -textSize.Height / 2f);
+            int hits = directionHits[dir];
+            bool isBroken = hits >= 3;
+            bool isPressed = (currentMove == dir);
 
-                g.ResetTransform();
+            float angle = 0f;
+            if (dir == 'W') angle = 0f;
+            else if (dir == 'D') angle = 90f;
+            else if (dir == 'S') angle = 180f;
+            else if (dir == 'A') angle = 270f;
+
+            using (Font font = new Font("Segoe UI Emoji", 30, FontStyle.Regular))
+            {
+                if (isBroken)
+                {
+                    if (isAttacker)
+                    {
+                        using (Brush brush = new SolidBrush(Color.Gold))
+                        {
+                            g.TranslateTransform(size.Width / 2f, size.Height / 2f);
+                            g.RotateTransform(angle);
+                            string text = "🥊";
+                            SizeF textSize = g.MeasureString(text, font);
+                            g.DrawString(text, font, brush, -textSize.Width / 2f, -textSize.Height / 2f);
+                            g.ResetTransform();
+                        }
+                    }
+                    else
+                    {
+                        using (Brush brush = new SolidBrush(Color.Red))
+                        {
+                            g.TranslateTransform(size.Width / 2f, size.Height / 2f);
+                            string text = "💀";
+                            SizeF textSize = g.MeasureString(text, font);
+                            g.DrawString(text, font, brush, -textSize.Width / 2f, -textSize.Height / 2f);
+                            g.ResetTransform();
+                        }
+                    }
+                }
+                else
+                {
+                    Color brushColor = isPressed ? Color.Blue : Color.Gray;
+                    string text = isAttacker ? "🥊" : "▲";
+
+                    g.TranslateTransform(size.Width / 2f, size.Height / 2f);
+                    g.RotateTransform(angle);
+
+                    // 1. Draw Base Icon
+                    using (Brush brush = new SolidBrush(brushColor))
+                    {
+                        SizeF textSize = g.MeasureString(text, font);
+                        g.DrawString(text, font, brush, -textSize.Width / 2f, -textSize.Height / 2f);
+                    }
+
+                    // 2. Procedural Cracks
+                    if (hits > 0)
+                    {
+                        using (Pen crackPen = new Pen(Color.FromArgb(230, 20, 20, 20), 2.2f))
+                        {
+                            crackPen.StartCap = LineCap.Round;
+                            crackPen.EndCap = LineCap.Round;
+
+                            // Stage 1: Single fracture
+                            PointF[] crack1 = {
+                                new PointF(-6, -14),
+                                new PointF(-2, -5),
+                                new PointF(-7, 4),
+                                new PointF(5, 14)
+                            };
+                            g.DrawLines(crackPen, crack1);
+
+                            // Stage 2: Branching fractures
+                            if (hits >= 2)
+                            {
+                                PointF[] branch1 = {
+                                    new PointF(-2, -5),
+                                    new PointF(8, -3),
+                                    new PointF(12, -10)
+                                };
+                                PointF[] branch2 = {
+                                    new PointF(-7, 4),
+                                    new PointF(-13, 8),
+                                    new PointF(-15, 15)
+                                };
+                                g.DrawLines(crackPen, branch1);
+                                g.DrawLines(crackPen, branch2);
+                            }
+                        }
+                    }
+
+                    g.ResetTransform();
+                }
             }
         }
 
         private void StartRound()
         {
+            if (isGameOver) return;
+
+            currentMove = ' ';
+            RefreshPanels();
+
             timeRemaining = roundTimeMs;
             prgTimer.Maximum = roundTimeMs;
             prgTimer.Value = roundTimeMs;
@@ -149,6 +331,12 @@ namespace CbgDesktopClient
 
         private async void RoundTimer_Tick(object sender, EventArgs e)
         {
+            if (isGameOver)
+            {
+                roundTimer.Stop();
+                return;
+            }
+
             timeRemaining -= roundTimer.Interval;
 
             if (timeRemaining <= 0)
@@ -156,34 +344,54 @@ namespace CbgDesktopClient
                 roundTimer.Stop();
                 prgTimer.Value = 0;
 
-                string moveToSend = currentMove == ' ' ? "NONE" : currentMove.ToString();
-                byte[] buffer = Encoding.UTF8.GetBytes(moveToSend);
-                await stream.WriteAsync(buffer, 0, buffer.Length);
+                try
+                {
+                    string moveToSend = currentMove == ' ' ? "NONE" : currentMove.ToString();
+                    byte[] buffer = Encoding.UTF8.GetBytes(moveToSend);
+                    await stream.WriteAsync(buffer, 0, buffer.Length);
 
-                lblStatus.Text = "Move locked! Waiting for opponent...";
+                    lblStatus.Text = "Move locked! Waiting for opponent...";
+                }
+                catch { }
             }
             else
             {
-                prgTimer.Value = timeRemaining;
+                prgTimer.Value = Math.Max(0, timeRemaining);
             }
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (!gameStarted) return;
+            if (!gameStarted || isGameOver) return;
 
-            if (e.KeyCode == Keys.W) { currentMove = 'W'; RefreshPanels(); }
-            else if (e.KeyCode == Keys.S) { currentMove = 'S'; RefreshPanels(); }
-            else if (e.KeyCode == Keys.A) { currentMove = 'A'; RefreshPanels(); }
-            else if (e.KeyCode == Keys.D) { currentMove = 'D'; RefreshPanels(); }
+            char pressed = ' ';
+            if (e.KeyCode == Keys.W) pressed = 'W';
+            else if (e.KeyCode == Keys.S) pressed = 'S';
+            else if (e.KeyCode == Keys.A) pressed = 'A';
+            else if (e.KeyCode == Keys.D) pressed = 'D';
+
+            if (pressed != ' ' && directionHits[pressed] < 3)
+            {
+                currentMove = pressed;
+                RefreshPanels();
+            }
         }
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.W && currentMove == 'W') { currentMove = ' '; RefreshPanels(); }
-            else if (e.KeyCode == Keys.S && currentMove == 'S') { currentMove = ' '; RefreshPanels(); }
-            else if (e.KeyCode == Keys.A && currentMove == 'A') { currentMove = ' '; RefreshPanels(); }
-            else if (e.KeyCode == Keys.D && currentMove == 'D') { currentMove = ' '; RefreshPanels(); }
+            if (isGameOver) return;
+
+            char released = ' ';
+            if (e.KeyCode == Keys.W) released = 'W';
+            else if (e.KeyCode == Keys.S) released = 'S';
+            else if (e.KeyCode == Keys.A) released = 'A';
+            else if (e.KeyCode == Keys.D) released = 'D';
+
+            if (released != ' ' && currentMove == released)
+            {
+                currentMove = ' ';
+                RefreshPanels();
+            }
         }
     }
 }

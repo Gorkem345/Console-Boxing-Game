@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37531.7
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CbgClient", "CbgClient\CbgClient.csproj", "{204CE661-743E-DE7D-04BC-B6BF2B99F0DA}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CbgServer", "CbgServer\CbgServer.csproj", "{D3DC3FD1-4297-1558-43BF-1D45E9470C31}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CbgDesktopClient", "CbgDesktopClient\CbgDesktopClient.csproj", "{606BE0DD-3B21-4DFD-983B-E91A1297456E}"
@@ -15,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{204CE661-743E-DE7D-04BC-B6BF2B99F0DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{204CE661-743E-DE7D-04BC-B6BF2B99F0DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{204CE661-743E-DE7D-04BC-B6BF2B99F0DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{204CE661-743E-DE7D-04BC-B6BF2B99F0DA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D3DC3FD1-4297-1558-43BF-1D45E9470C31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D3DC3FD1-4297-1558-43BF-1D45E9470C31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D3DC3FD1-4297-1558-43BF-1D45E9470C31}.Release|Any CPU.ActiveCfg = Release|Any CPU
